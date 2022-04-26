@@ -88,7 +88,7 @@ class TCPCheck(AgentCheck):
 
     def resolve_ips(self):
         self._addrs = [
-            sockaddr[0] for (_, _, _, _, sockaddr) in socket.getaddrinfo(self.host, self.port, proto=socket.IPPROTO_TCP)
+            sockaddr[0] for (_, _, _, _, sockaddr) in socket.getaddrinfo(self.host, self.port, 0, 0, socket.IPPROTO_TCP)
         ]
         if not self.multiple_ips:
             self._addrs = self._addrs[:1]
