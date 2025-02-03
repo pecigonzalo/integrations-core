@@ -18,7 +18,7 @@ def pytest_addoption(parser):
     parser.addoption(
         "--distribution-version",
         action="store",
-        default="1.10.0",
+        default="4.0.0",
         help="The version number of the desired Datadog check.",
     )
     parser.addoption(
@@ -56,6 +56,11 @@ def distribution_name(request):
 def distribution_version(request):
     """Provide distribution_version fixture."""
     return request.config.getoption("--distribution-version")
+
+
+def pytest_generate_tests(metafunc):
+    if "disable_verification" in metafunc.fixturenames:
+        metafunc.parametrize("disable_verification", [False, True])
 
 
 @pytest.fixture(autouse=True)

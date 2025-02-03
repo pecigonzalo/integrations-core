@@ -9,13 +9,16 @@
     "support": "README.md#Support",
     "changelog": "CHANGELOG.md",
     "description": "Oracle relational database system designed for enterprise grid computing",
-    "title": "Oracle",
+    "title": "Oracle Database",
     "media": [],
     "classifier_tags": [
+      "Category::Data Stores",
+      "Category::Network",
+      "Category::Oracle",
       "Supported OS::Linux",
-      "Supported OS::macOS",
       "Supported OS::Windows",
-      "Category::Data Store"
+      "Supported OS::macOS",
+      "Offering::Integration"
     ]
   },
   "author": {
@@ -24,7 +27,6 @@
     "homepage": "https://www.datadoghq.com",
     "sales_email": "info@datadoghq.com"
   },
-  "oauth": {},
   "assets": {
     "integration": {
       "source_type_name": "Oracle Database",
@@ -41,10 +43,13 @@
       },
       "service_checks": {
         "metadata_path": "assets/service_checks.json"
-      }
+      },
+      "source_type_id": 10000,
+      "auto_install": true
     },
     "dashboards": {
-      "oracle": "assets/dashboards/oracle_overview.json"
+      "oracle": "assets/dashboards/oracle_overview.json",
+      "DBM Oracle Database Overview": "assets/dashboards/dbm_oracle_database_overview.json"
     }
   }
 }

@@ -8,16 +8,18 @@
     "configuration": "README.md#Setup",
     "support": "README.md#Support",
     "changelog": "CHANGELOG.md",
-    "description": "Analyze your Azure Active Directory activity logs",
-    "title": "Azure Active Directory",
+    "description": "Analyze your Microsoft Entra ID activity logs",
+    "title": "Microsoft Entra ID",
     "media": [],
     "classifier_tags": [
-      "Supported OS::Linux",
-      "Supported OS::macOS",
-      "Supported OS::Windows",
       "Category::Azure",
+      "Category::Cloud",
       "Category::Log Collection",
-      "Category::Security"
+      "Category::Security",
+      "Supported OS::Linux",
+      "Supported OS::Windows",
+      "Supported OS::macOS",
+      "Offering::Integration"
     ]
   },
   "author": {
@@ -26,7 +28,6 @@
     "homepage": "https://www.datadoghq.com",
     "sales_email": "info@datadoghq.com"
   },
-  "oauth": {},
   "assets": {
     "integration": {
       "source_type_name": "Azure Active Directory",
@@ -36,10 +37,9 @@
       },
       "service_checks": {
         "metadata_path": "assets/service_checks.json"
-      }
-    },
-    "logs": {
-      "source": "azure.active_directory"
+      },
+      "source_type_id": 10106,
+      "auto_install": true
     }
   }
 }

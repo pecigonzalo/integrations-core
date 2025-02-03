@@ -3,7 +3,7 @@
 # Licensed under a 3-clause BSD style license (see LICENSE)
 from copy import deepcopy
 
-from six import PY2
+from requests.exceptions import HTTPError
 
 from datadog_checks.base import AgentCheck, ConfigurationError, is_affirmative
 from datadog_checks.base.utils.time import get_precise_time
@@ -46,6 +46,7 @@ class TeamCityRest(AgentCheck):
         self.basic_http_auth = is_affirmative(
             self.instance.get('basic_http_authentication', bool(self.instance.get('password', False)))
         )
+        self.token_auth = is_affirmative(self.instance.get('auth_token'))
 
         self.monitored_projects = self.instance.get('projects', {})
         self.default_build_configs_limit = self.instance.get('default_build_configs_limit', DEFAULT_BUILD_CONFIGS_LIMIT)
@@ -67,7 +68,9 @@ class TeamCityRest(AgentCheck):
 
         server = self.instance.get('server')
         self.server_url = normalize_server_url(server)
-        self.base_url = "{}/{}".format(self.server_url, self.auth_type)
+        self.base_url = self.server_url
+        if not self.token_auth:
+            self.base_url = "{}/{}".format(self.server_url, self.auth_type)
 
         instance_tags = [
             'server:{}'.format(sanitize_server_url(self.server_url)),
@@ -77,9 +80,6 @@ class TeamCityRest(AgentCheck):
         self.tags.update(instance_tags)
 
         self.bc_store = BuildConfigs()
-
-        if PY2:
-            self.check_initializations.append(self._validate_config)
 
     def _validate_config(self):
         if self.instance.get('projects'):
@@ -107,54 +107,44 @@ class TeamCityRest(AgentCheck):
                 self.bc_store.set_last_build_id(project_id, build_config_id, last_build_id)
 
     def _initialize_multi_build_config(self):
-        filtered_projects = None
-        build_configs_list = None
-        projects = get_response(self, 'projects')
-        if projects and projects.get('project'):
-            projects_list = [project['id'] for project in projects['project']]
-            filtered_projects, projects_limit_reached = filter_projects(self, projects_list)
-            if projects_limit_reached:
+        project_ids = [project['id'] for project in get_response(self, 'projects').get('project', [])]
+        filtered_projects, projects_limit_reached = filter_projects(self, project_ids)
+        if projects_limit_reached:
+            self.log.warning(
+                "Reached projects limit of %s. Update your `projects` configuration using the `include` and "
+                "`exclude` filter options or increase the `default_projects_limit` option.",
+                len(filtered_projects),
+            )
+
+        for project_id in filtered_projects:
+            build_configs_list = [
+                build_config['id']
+                for build_config in get_response(self, 'build_configs', project_id=project_id).get('buildType', [])
+            ]
+            # Handle case where the `include` build_config element is a string. Assign `{}` as its filter config.
+            # projects:
+            #   project_regex:
+            #     include:
+            #       - build_config_regex
+            # `build_config_regex` == `build_config_regex: {}`
+            build_config_filter_config = (
+                filtered_projects.get(project_id) if isinstance(filtered_projects.get(project_id), dict) else {}
+            )
+            filtered_build_configs, build_configs_limit_reached = filter_build_configs(
+                self, build_configs_list, project_id, build_config_filter_config
+            )
+            if build_configs_limit_reached:
                 self.log.warning(
-                    "Reached projects limit of %s. Update your `projects` configuration using the `include` and "
-                    "`exclude` filter options or increase the `default_projects_limit` option.",
-                    len(filtered_projects),
+                    "Reached build configurations limit of %s. Update your `projects` "
+                    "configuration using the `include` and `exclude` filter options or "
+                    "increase the `default_build_configs_limit` option.",
+                    len(filtered_build_configs),
                 )
-
-        if filtered_projects is not None and len(filtered_projects) >= 1:
-            project_id_list = list(filtered_projects)
-            for project_id in project_id_list:
-                build_configs = get_response(self, 'build_configs', project_id=project_id)
-                if build_configs and build_configs.get('buildType'):
-                    build_configs_list = [build_config['id'] for build_config in build_configs['buildType']]
-
-                for project_pattern in filtered_projects.get(project_id):
-                    """
-                    Handle case where the `include` build_config element is a string. Assign `{}` as its filter config.
-                    # projects:
-                    #   project_regex:
-                    #     include:
-                    #       - build_config_regex
-
-                    `build_config_regex` == `build_config_regex: {}`
-                    """
-                    build_config_filter_config = (
-                        filtered_projects.get(project_id) if isinstance(filtered_projects.get(project_id), dict) else {}
-                    )
-                    filtered_build_configs, build_configs_limit_reached = filter_build_configs(
-                        self, build_configs_list, project_pattern, build_config_filter_config
-                    )
-                    if build_configs_limit_reached:
-                        self.log.warning(
-                            "Reached build configurations limit of %s. Update your `projects` "
-                            "configuration using the `include` and `exclude` filter options or "
-                            "increase the `default_build_configs_limit` option.",
-                            len(filtered_build_configs),
-                        )
-                    for build_config_id in list(filtered_build_configs):
-                        if not self.bc_store.get_build_config(project_id, build_config_id):
-                            build_config_type = self._get_build_config_type(build_config_id)
-                            self.bc_store.set_build_config(project_id, build_config_id, build_config_type)
-                            self._get_last_build_id(project_id, build_config_id)
+            for build_config_id in filtered_build_configs:
+                if not self.bc_store.get_build_config(project_id, build_config_id):
+                    build_config_type = self._get_build_config_type(build_config_id)
+                    self.bc_store.set_build_config(project_id, build_config_id, build_config_type)
+                    self._get_last_build_id(project_id, build_config_id)
 
     def _initialize_single_build_config(self):
         build_config_id = self.current_build_config
@@ -178,10 +168,6 @@ class TeamCityRest(AgentCheck):
             self._initialize_single_build_config()
 
         else:
-            if PY2:
-                raise self.CheckException(
-                    'Multi-build configuration monitoring is not currently supported in Python 2.'
-                )
             self.log.debug("Initializing multi-build configuration monitoring.")
             self._initialize_multi_build_config()
 
@@ -247,13 +233,24 @@ class TeamCityRest(AgentCheck):
     def _collect_new_builds(self, project_id):
         last_build_id = self.bc_store.get_last_build_id(project_id, self.current_build_config)
         if not last_build_id:
-            self._initialize()
+            # We want to handle the case of an unbuilt build config by checking for any last builds
+            self.log.debug(
+                'No builds for project %d and build config %d, checking again', project_id, self.current_build_config
+            )
+            resource = "last_build"
+            options = {"project_id": project_id}
         else:
             self.log.debug('Checking for new builds...')
-            new_builds = get_response(
-                self, 'new_builds', build_conf=self.current_build_config, since_build=last_build_id
-            )
-            return new_builds
+            resource = "new_builds"
+            options = {"since_build": last_build_id}
+        try:
+            new_builds = get_response(self, resource, build_conf=self.current_build_config, **options)
+        except HTTPError:
+            # In the case where a build config has been deleted, no new builds should be returned and it will be removed
+            # from the list of all build configs in the next re-initialization
+            self.log.debug('Failed to retrieve new builds for build config %s', self.current_build_config)
+            new_builds = {}
+        return new_builds
 
     def _get_build_config_type(self, build_config):
         if self.is_deployment:

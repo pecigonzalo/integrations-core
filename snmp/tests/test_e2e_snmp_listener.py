@@ -3,6 +3,7 @@
 # Licensed under Simplified BSD License (see LICENSE)
 
 import pytest
+
 from tests.metrics import (
     IF_BANDWIDTH_USAGE,
     IF_COUNTS,
@@ -52,8 +53,10 @@ def test_e2e_snmp_listener(dd_agent_check, container_ip, autodiscovery_ready):
 
     # === network profile ===
     common_tags = [
-        'snmp_profile:generic-router',
+        'snmp_profile:generic-device',
         'snmp_device:{}'.format(snmp_device),
+        'device_ip:{}'.format(snmp_device),
+        'device_id:default:{}'.format(snmp_device),
         'autodiscovery_subnet:{}.0/29'.format(subnet_prefix),
         'tag1:val1',
         'tag2:val2',
@@ -62,11 +65,15 @@ def test_e2e_snmp_listener(dd_agent_check, container_ip, autodiscovery_ready):
 
     common.assert_common_metrics(aggregator, common_tags, is_e2e=True, loader='core')
     interfaces = [
-        ('eth0', 'kept'),
-        ('eth1', 'their forward oxen'),
+        (13, 'eth0', 'kept'),
+        (15, 'eth1', 'their forward oxen'),
     ]
-    for interface, if_desc in interfaces:
-        tags = ['interface:{}'.format(interface), 'interface_alias:{}'.format(if_desc)] + common_tags
+    for index, interface, if_desc in interfaces:
+        tags = [
+            'interface:{}'.format(interface),
+            'interface_alias:{}'.format(if_desc),
+            'interface_index:{}'.format(index),
+        ] + common_tags
         for metric in IF_COUNTS:
             aggregator.assert_metric('snmp.{}'.format(metric), metric_type=aggregator.COUNT, tags=tags, count=1)
         for metric in IF_RATES:
@@ -115,7 +122,7 @@ def test_e2e_snmp_listener(dd_agent_check, container_ip, autodiscovery_ready):
         'snmp.upsOutletGroupStatusGroupState',
         metric_type=aggregator.GAUGE,
         count=2,
-        tags=['outlet_group_name:test_outlet'] + common_tags,
+        tags=['outlet_group_name:test_outlet', 'ups_outlet_group_status_group_state:3'] + common_tags,
     )
 
     for metric, value in metrics.APC_UPS_UPS_BASIC_STATE_OUTPUT_STATE_METRICS:
@@ -125,9 +132,12 @@ def test_e2e_snmp_listener(dd_agent_check, container_ip, autodiscovery_ready):
     for auth_proto in ['sha', 'sha256']:
         common_tags = [
             'snmp_device:{}'.format(snmp_device),
+            'device_ip:{}'.format(snmp_device),
+            'device_id:test-auth-proto-{}:{}'.format(auth_proto, snmp_device),
             'autodiscovery_subnet:{}.0/27'.format(subnet_prefix),
             'snmp_host:41ba948911b9',
-            'snmp_profile:generic-router',
+            'device_hostname:41ba948911b9',
+            'snmp_profile:generic-device',
             'device_namespace:test-auth-proto-{}'.format(auth_proto),
         ]
 
@@ -141,7 +151,8 @@ def test_e2e_snmp_listener(dd_agent_check, container_ip, autodiscovery_ready):
         'snmp_device:{}'.format(_build_device_ip(container_ip, '2')),
         'autodiscovery_subnet:{}.0/27'.format(subnet_prefix),
         'snmp_host:41ba948911b9',
-        'snmp_profile:generic-router',
+        'device_hostname:41ba948911b9',
+        'snmp_profile:generic-device',
     ]
     aggregator.assert_metric('snmp.devices_monitored', count=0, tags=tags)
 

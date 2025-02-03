@@ -12,9 +12,7 @@ import time
 import weakref
 from collections import defaultdict
 from concurrent import futures
-from typing import Any, DefaultDict, Dict, List, Optional, Pattern, Tuple
-
-from six import iteritems
+from typing import Any, DefaultDict, Dict, List, Optional, Pattern, Tuple  # noqa: F401
 
 from datadog_checks.base import AgentCheck, ConfigurationError, is_affirmative
 from datadog_checks.base.errors import CheckException
@@ -28,7 +26,7 @@ from .exceptions import PySnmpError
 from .metrics import as_metric_with_forced_type, as_metric_with_inferred_type, try_varbind_value_to_float
 from .mibs import MIBLoader
 from .models import OID
-from .parsing import ColumnTag, IndexTag, ParsedMetric, ParsedTableMetric, SymbolTag
+from .parsing import ColumnTag, IndexTag, ParsedMetric, ParsedTableMetric, SymbolTag  # noqa: F401
 from .pysnmp_types import ObjectIdentity, ObjectType, noSuchInstance, noSuchObject
 from .utils import (
     OIDPrinter,
@@ -123,7 +121,8 @@ class SnmpCheck(AgentCheck):
             try:
                 recursively_expand_base_profiles(definition)
             except Exception as exc:
-                raise ConfigurationError("Failed to expand base profiles in profile '{}': {}".format(name, exc))
+                self.log.warning("Failed to expand base profiles in profile '%s': %s", name, exc)
+                continue
 
             profiles[name] = {'definition': definition}
 
@@ -514,7 +513,7 @@ class SnmpCheck(AgentCheck):
                 self.log.debug('Ignoring metric %s', name)
                 continue
             if isinstance(metric, ParsedTableMetric):
-                for index, val in iteritems(results[name]):
+                for index, val in results[name].items():
                     metric_tags = tags + self.get_index_tags(index, results, metric.index_tags, metric.column_tags)
                     self.submit_metric(
                         name, val, metric.forced_type, metric_tags, metric.options, metric.extract_value_pattern

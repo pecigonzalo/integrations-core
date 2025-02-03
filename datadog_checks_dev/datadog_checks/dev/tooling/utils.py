@@ -170,13 +170,7 @@ def initialize_root(config, agent=False, core=False, extras=False, marketplace=F
     repo_choice = (
         'core'
         if core
-        else 'extras'
-        if extras
-        else 'agent'
-        if agent
-        else 'marketplace'
-        if marketplace
-        else config.get('repo', 'core')
+        else 'extras' if extras else 'agent' if agent else 'marketplace' if marketplace else config.get('repo', 'core')
     )
     config['repo_choice'] = repo_choice
     message = None
@@ -188,9 +182,7 @@ def initialize_root(config, agent=False, core=False, extras=False, marketplace=F
             repo = (
                 'datadog-agent'
                 if repo_choice == 'agent'
-                else 'marketplace'
-                if repo_choice == 'marketplace'
-                else f'integrations-{repo_choice}'
+                else 'marketplace' if repo_choice == 'marketplace' else f'integrations-{repo_choice}'
             )
             message = f'`{repo}` directory `{root}` does not exist, defaulting to the current location.'
 
@@ -425,7 +417,7 @@ def get_check_files(check_name, file_suffix='.py', abs_file_path=True, include_t
 
 
 def get_valid_checks():
-    return {path for path in os.listdir(get_root()) if file_exists(get_version_file(path))}
+    return {path for path in os.listdir(get_root()) if path == 'ddev' or file_exists(get_version_file(path))}
 
 
 def get_valid_integrations():
@@ -510,9 +502,15 @@ def get_version_string(check_name, tag_prefix='v', pattern=None):
     # Check the version file of the integration if available
     # Otherwise, get the latest SemVer git tag for the project
     if check_name:
-        version = VERSION.search(read_version_file(check_name))
-        if version:
-            return version.group(1)
+        if check_name == 'ddev':
+            with open(os.path.join(get_root(), check_name, 'CHANGELOG.md'), encoding='utf-8') as f:
+                for line in f:
+                    if line.startswith('## ') and line.strip() != '## Unreleased':
+                        return line.split()[1].strip()
+        else:
+            version = VERSION.search(read_version_file(check_name))
+            if version:
+                return version.group(1)
     else:
         return get_latest_tag(pattern=pattern, tag_prefix=tag_prefix)
 
@@ -624,6 +622,9 @@ def parse_version_parts(version):
 def has_e2e(check):
     for path, _, files in os.walk(get_test_directory(check)):
         for fn in files:
+            if fn == 'test_e2e.py':
+                return True
+
             if fn.startswith('test_') and fn.endswith('.py'):
                 with open(os.path.join(path, fn)) as test_file:
                     if 'pytest.mark.e2e' in test_file.read():

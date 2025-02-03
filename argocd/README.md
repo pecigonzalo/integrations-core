@@ -29,6 +29,8 @@ The Datadog Agent can collect the exposed metrics using this integration. Follow
 
 Ensure that the Prometheus-formatted metrics are exposed in your Argo CD cluster. This is enabled by default if using Argo CD's [default manifests][10]. For the Agent to gather all metrics, each of the three aforementioned components needs to be annotated. For more information about annotations, see the [Autodiscovery Integration Templates][4] for guidance. Additional configuration options are available by reviewing the [sample argocd.d/conf.yaml][12].
 
+There are use cases where Argo CD Applications contain labels that need to be exposed as Prometheus metrics. These labels are available using the `argocd_app_labels` metric, which is disabled on the Application Controller by default. Refer to the [ArgoCD Documentation][14] for instructions on how to enable it.
+
 Example configurations:
 
 **Application Controller**:
@@ -109,6 +111,41 @@ spec:
 # (...)
 ```
 
+**Note**: For the full list of supported endpoints, see the [conf.yaml example file][15].
+
+##### Troubleshooting 
+
+**Clashing Tag Names**:
+The Argo CD integration attaches a name tag derived from the application name OpenMetrics label when available. This could sometimes lead to querying issues if a name tag is already attached to a host, as seen in the example `name: host_a, app_a`. To prevent any unwanted behavior when querying, it is advisable to [remap the name label][13] to something more unique, such as `argocd_app_name` if the host happens to already have a name tag. Below is an example configuration:
+
+**Application Controller**:
+```yaml
+apiVersion: v1
+kind: Pod
+# (...)
+metadata:
+  name: '<POD_NAME>'
+  annotations:
+    ad.datadoghq.com/argocd-application-controller.checks: |
+      {
+        "argocd": {
+          "init_config": {},
+          "instances": [
+            {
+              "app_controller_endpoint": "http://%%host%%:8082/metrics",
+              "rename_labels": {
+                "name": "argocd_app_name"
+              }
+            }
+          ]
+        }
+      }
+    # (...)
+spec:
+  containers:
+    - name: 'argocd-application-controller'
+# (...)
+```
 
 ##### Log collection
 
@@ -120,7 +157,7 @@ See the [Autodiscovery Integration Templates][3] for guidance on applying the pa
 
 | Parameter      | Value                                                |
 | -------------- | ---------------------------------------------------- |
-| `<LOG_CONFIG>` | `{"source": "argocd", "service": "<SERVICE_NAME>"}`   |
+| `<LOG_CONFIG>` | `{"source": "argocd", "service": "<SERVICE_NAME>"}`  |
 
 ### Validation
 
@@ -144,9 +181,15 @@ See [service_checks.json][8] for a list of service checks provided by this integ
 
 Need help? Contact [Datadog support][9].
 
+## Further Reading
+
+Additional helpful documentation, links, and articles:
+
+- [Monitoring the health and performance of your container-native CI/CD pipelines][16]
+
 
 [1]: https://argo-cd.readthedocs.io/en/stable/
-[2]: https://app.datadoghq.com/account/settings#agent
+[2]: https://app.datadoghq.com/account/settings/agent/latest
 [3]: https://docs.datadoghq.com/agent/kubernetes/integrations/
 [4]: https://docs.datadoghq.com/containers/kubernetes/integrations/?tab=kubernetesadv2
 [5]: https://docs.datadoghq.com/agent/kubernetes/log/
@@ -157,4 +200,8 @@ Need help? Contact [Datadog support][9].
 [10]: https://argo-cd.readthedocs.io/en/stable/operator-manual/installation/
 [11]: https://docs.datadoghq.com/integrations/openmetrics/
 [12]: https://github.com/DataDog/integrations-core/blob/master/argocd/datadog_checks/argocd/data/conf.yaml.example
+[13]: https://github.com/DataDog/integrations-core/blob/7.45.x/argocd/datadog_checks/argocd/data/conf.yaml.example#L164-L166
+[14]: https://argo-cd.readthedocs.io/en/stable/operator-manual/metrics/#exposing-application-labels-as-prometheus-metrics
+[15]: https://github.com/DataDog/integrations-core/blob/master/argocd/datadog_checks/argocd/data/conf.yaml.example#L45-L72
+[16]: https://www.datadoghq.com/blog/container-native-ci-cd-integrations/
 

@@ -5,9 +5,7 @@
 import abc
 import json
 import os
-from typing import Dict
-
-import six
+from typing import Dict  # noqa: F401
 
 from ...datastructures import JSONDict
 from ...git import git_show_file
@@ -29,8 +27,7 @@ class ValidationResult(object):
         return str(self)
 
 
-@six.add_metaclass(abc.ABCMeta)
-class BaseManifestValidator(object):
+class BaseManifestValidator(abc.ABC):
     def __init__(
         self,
         is_extras=False,
@@ -64,6 +61,7 @@ class BaseManifestValidator(object):
             return True
         return False
 
+    @abc.abstractmethod
     def validate(self, check_name, manifest, should_fix):
         # type: (str, Dict, bool) -> None
         """Validates the decoded manifest. Will perform inline changes if fix is true"""
@@ -283,6 +281,7 @@ class LogsCategoryValidator(BaseManifestValidator):
         'altostra',
         'hasura_cloud',
         'sqreen',
+        'openai',  # Logs are submitted to the logs intake API
     }
 
     def validate(self, check_name, decoded, fix):

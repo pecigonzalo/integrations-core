@@ -12,7 +12,9 @@ import shutil
 import string
 import subprocess
 import sys
+import time
 from collections import defaultdict, namedtuple
+from contextlib import contextmanager
 from datetime import datetime
 from urllib.parse import urljoin
 
@@ -21,13 +23,13 @@ import requests
 from freezegun import freeze_time
 from packaging.version import parse as parse_version
 from tenacity import retry, stop_after_attempt, wait_exponential
-from tests.local_http import local_http_server, local_http_server_local_dir
 from tuf.api.exceptions import DownloadError, ExpiredMetadataError, RepositoryError, UnsignedMetadataError
 
 import datadog_checks.downloader
-from datadog_checks.downloader.cli import download
+from datadog_checks.downloader.cli import download, instantiate_downloader, run_downloader
 from datadog_checks.downloader.download import REPOSITORY_URL_PREFIX
 from datadog_checks.downloader.exceptions import NonDatadogPackage, NoSuchDatadogPackage
+from tests.local_http import local_http_server, local_http_server_local_dir
 
 _LOGGER = logging.getLogger("test_downloader")
 
@@ -50,6 +52,16 @@ EXCLUDED_INTEGRATIONS = [
     "datadog-docker-daemon",
     "datadog-dd-cluster-agent",  # excluding this since actual integration is called `datadog-cluster-agent`
     "datadog-kubernetes",  # excluding this since `kubernetes` check is Agent v5 only
+    "datadog-go-metro",  # excluding this since `go-metro` check is Agent v5 only
+    "datadog-agent-metrics",  # excluding this since `agent-metrics` check is Agent v5 only
+    "datadog-amazon-kafka",  # excluding this since `amazon-kafka` wasn't an official release
+    "datadog-tokumx",  # excluding this since `tokumx` was dropped in py3
+    "datadog-ntp",  # excluding this since `ntp` was Agent 5 only
+]
+
+EXCLUDED_LOG_INTEGRATIONS = [
+    # Temporary exclusion until we re-release the integration or come up with a better solution.
+    "datadog-zeek",  # log only integration released by Florent. Will fail until we re-release it.
 ]
 
 # Specific integration versions released for the last time by a revoked developer but not shipped anymore.
@@ -59,23 +71,56 @@ EXCLUDED_INTEGRATION_VERSION = [
 ]
 
 
-def _do_run_downloader(argv):
-    """Run the Datadog checks downloader."""
+def delay_rerun(*args):
+    time.sleep(10)
+    return True
+
+
+@contextmanager
+def modified_args(argv):
     old_sys_argv = sys.argv
 
     sys.argv = ["datadog_checks_downloader"] + argv  # Make sure argv[0] (program name) is prepended.
-    try:
+
+    yield
+
+    sys.argv = old_sys_argv
+
+
+def _do_run_downloader(argv):
+    """Run the Datadog checks downloader."""
+
+    with modified_args(argv):
         download()
-    finally:
-        sys.argv = old_sys_argv
 
 
 @pytest.mark.online
-def test_download(capfd, distribution_name, distribution_version, temporary_local_repo):
+@pytest.mark.flaky(max_runs=3, rerun_filter=delay_rerun)
+def test_download(capfd, distribution_name, distribution_version, temporary_local_repo, disable_verification, mocker):
     """Test datadog-checks-downloader successfully downloads and validates a wheel file."""
     argv = [distribution_name, "--version", distribution_version]
 
-    _do_run_downloader(argv)
+    if disable_verification:
+        argv.append('--unsafe-disable-verification')
+
+    with modified_args(argv):
+        tuf_downloader, standard_distribution_name, version, ignore_python_version = instantiate_downloader()
+
+        spy_with_tuf = mocker.spy(tuf_downloader, '_download_with_tuf')
+        spy_with_tuf_in_toto = mocker.spy(tuf_downloader, '_download_with_tuf_in_toto')
+        spy_without_tuf_in_toto = mocker.spy(tuf_downloader, '_download_without_tuf_in_toto')
+
+        run_downloader(tuf_downloader, standard_distribution_name, version, ignore_python_version)
+
+        if disable_verification:
+            spy_with_tuf.assert_not_called()
+            spy_with_tuf_in_toto.assert_not_called()
+            spy_without_tuf_in_toto.assert_called()
+        else:
+            spy_without_tuf_in_toto.assert_not_called()
+            spy_with_tuf_in_toto.assert_called()
+            spy_with_tuf.assert_called()
+
     stdout, stderr = capfd.readouterr()
 
     assert not stderr, "No standard error expected, got: {}".format(stderr)
@@ -117,13 +162,13 @@ def test_non_datadog_distribution():
     [
         (
             "datadog-active-directory",
-            "1.10.0",
-            "simple/datadog-active-directory/datadog_active_directory-1.10.0-py2.py3-none-any.whl",
+            "4.0.0",
+            "simple/datadog-active-directory/datadog_active_directory-4.0.0-py2.py3-none-any.whl",
         ),
     ],
 )
 @freeze_time(_LOCAL_TESTS_DATA_TIMESTAMP)
-def test_local_download(capfd, distribution_name, distribution_version, target):
+def test_local_download(capfd, distribution_name, distribution_version, target, disable_verification):
     """Test local verification of a wheel file."""
 
     with local_http_server("{}-{}".format(distribution_name, distribution_version)) as http_url:
@@ -134,6 +179,10 @@ def test_local_download(capfd, distribution_name, distribution_version, target):
             "--repository",
             http_url,
         ]
+
+        if disable_verification:
+            argv.append('--unsafe-disable-verification')
+
         _do_run_downloader(argv)
 
     stdout, _ = capfd.readouterr()
@@ -172,7 +221,7 @@ def test_local_dir_download(capfd, local_dir, distribution_name, distribution_ve
 @pytest.mark.parametrize(
     "distribution_name,distribution_version",
     [
-        ("datadog-active-directory", "1.10.0"),
+        ("datadog-active-directory", "4.0.0"),
     ],
 )
 def test_local_expired_metadata_error(distribution_name, distribution_version):
@@ -210,7 +259,7 @@ def test_local_unreachable_repository():
 @pytest.mark.parametrize(
     "distribution_name,distribution_version",
     [
-        ("datadog-active-directory", "1.10.0"),
+        ("datadog-active-directory", "4.0.0"),
     ],
 )
 @freeze_time(_LOCAL_TESTS_DATA_TIMESTAMP)
@@ -246,14 +295,13 @@ def test_local_wheels_signer_signature_leaf_error(distribution_name, distributio
 @pytest.mark.offline
 @freeze_time(_LOCAL_TESTS_DATA_TIMESTAMP)
 def test_local_tampered_target_triggers_failure():
-
     distribution_name = "datadog-active-directory"
-    distribution_version = "1.10.0"
+    distribution_version = "4.0.0"
 
     def tamper(repo_dir):
         """Modify the target that we want to download."""
         files_to_change = (repo_dir / 'targets' / 'simple' / 'datadog-active-directory').glob(
-            '*.datadog_active_directory-1.10.0-*.whl'
+            '*.datadog_active_directory-4.0.0-*.whl'
         )
 
         for path in files_to_change:
@@ -280,7 +328,7 @@ def test_local_tampered_target_triggers_failure():
 def test_local_download_non_existing_package():
     """Test local verification of a wheel file."""
 
-    with local_http_server("datadog-active-directory-1.10.0".format()) as http_url:
+    with local_http_server("datadog-active-directory-4.0.0".format()) as http_url:
         argv = [
             "datadog-a-nonexisting",
             "--version",
@@ -411,7 +459,7 @@ def test_downloader():
         if not match:
             continue
         integration_name = match.group(1)
-        if integration_name in EXCLUDED_INTEGRATIONS:
+        if integration_name in EXCLUDED_INTEGRATIONS + EXCLUDED_LOG_INTEGRATIONS:
             continue
         if integration_name not in integrations_metadata:
             raise Exception(

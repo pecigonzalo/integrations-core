@@ -61,19 +61,28 @@ instances:
         ## @param include_aggregated_endpoint - boolean - optional - default: true
         ## Whether or not to include metrics from the aggregated endpoint (/metrics).
         ##
-        ## Note: This option must be set to true when 'unaggregated_endpoint' is unspecified.
+        ## You can learn more about this endpoint here:
+        ## https://www.rabbitmq.com/prometheus.html#default-endpoint
+        ##
+        ## Note: You must set this option to true if you do not specify the 'unaggregated_endpoint' option.
         #
         # include_aggregated_endpoint: true
 
         ## @param unaggregated_endpoint - string - optional - default: detailed
-        ## Which  unaggregated endpoint to use.
-        ## The choices are:
-        ##   - If the field is left unspecified, no endpoint is used.
-        ##   - "detailed" means the /metrics/detailed endpoint is used.
-        ##     You can also provide a query for this option, exactly as if you were making an HTTP request
-        ##     to this endpoint. For example, `detailed?family=queue_consumer_count`.
-        ##     You can specify this and the aggregated endpoint. In that case any duplicate metrics will
-        ##     be taken from this endpoint and the corresponding aggregated ones dropped.
+        ## Specify an endpoint without aggregation to collect more detailed metrics.
+        ##
+        ## For example, you can collect metrics tagged by queue or by exchange.
+        ## These metrics are served from the /metrics/detailed endpoint.
+        ## You can learn more about it here:
+        ## https://www.rabbitmq.com/prometheus.html#detailed-endpoint
+        ##
+        ## For brevity, you only need to specify "detailed" to start using this endpoint.
+        ## You can also provide a query exactly as if you were making an HTTP request
+        ## to this endpoint. For example, `detailed?family=queue_consumer_count&family=node_metrics&vhost=myvhost`.
+        ##
+        ## You can specify both this and the aggregated endpoint.
+        ## If you specify both endpoints, metrics from the unaggregated endpoint are prioritized
+        ## over metrics from the aggregated endpoint in case of name clashes.
         #
         # unaggregated_endpoint: detailed
 
@@ -187,6 +196,11 @@ instances:
     #
     # enable_health_service_check: true
 
+    ## @param ignore_connection_errors - boolean - optional - default: false
+    ## Whether or not to ignore connection errors when scraping `openmetrics_endpoint`.
+    #
+    # ignore_connection_errors: false
+
     ## @param hostname_label - string - optional
     ## Override the hostname for every metric submission with the value of one of its labels.
     #
@@ -281,11 +295,6 @@ instances:
     ## than the full metric name.
     #
     # cache_metric_wildcards: true
-
-    ## @param use_latest_spec - boolean - optional - default: false
-    ## Whether or not the parser will strictly adhere to the latest version of the OpenMetrics specification.
-    #
-    # use_latest_spec: false
 
     ## @param telemetry - boolean - optional - default: false
     ## Whether or not to submit metrics prefixed by `<NAMESPACE>.telemetry.` for debugging purposes.
@@ -454,6 +463,11 @@ instances:
     ##     client_secret (required): The client secret.
     ##     basic_auth: Whether the provider expects credentials to be transmitted in
     ##                 an HTTP Basic Auth header. The default is: false
+    ##     options: Mapping of additional options to pass to the provider, such as the audience
+    ##              or the scope. For example:
+    ##                 options:
+    ##                   audience: https://example.com
+    ##                   scope: read:example
     ##
     ## The available writers are:
     ##
@@ -532,8 +546,8 @@ instances:
     ## @param tls_ca_cert - string - optional
     ## The path to a file of concatenated CA certificates in PEM format or a directory
     ## containing several CA certificates in PEM format. If a directory, the directory
-    ## must have been processed using the c_rehash utility supplied with OpenSSL. See:
-    ## https://www.openssl.org/docs/manmaster/man3/SSL_CTX_load_verify_locations.html
+    ## must have been processed using the `openssl rehash` command. See:
+    ## https://www.openssl.org/docs/man3.2/man1/c_rehash.html
     #
     # tls_ca_cert: <CA_CERT_PATH>
 
@@ -550,6 +564,16 @@ instances:
     #   - SSLv3
     #   - TLSv1.2
     #   - TLSv1.3
+
+    ## @param tls_ciphers - list of strings - optional
+    ## The list of ciphers suites to use when connecting to an endpoint. If not specified, 
+    ## `ALL` ciphers are used. For list of ciphers see: 
+    ## https://www.openssl.org/docs/man1.0.2/man1/ciphers.html
+    #
+    # tls_ciphers:
+    #   - TLS_AES_256_GCM_SHA384
+    #   - TLS_CHACHA20_POLY1305_SHA256
+    #   - TLS_AES_128_GCM_SHA256
 
     ## @param headers - mapping - optional
     ## The headers parameter allows you to send specific headers with every request.
@@ -665,7 +689,9 @@ instances:
     # collect_node_metrics: true
 
     ## @param nodes - list of strings - optional
-    ## Use the `nodes` parameters to specify the nodes you'd like to collect metrics on (up to 100 nodes).
+    ## Use the `nodes` parameters to specify the nodes you'd like to collect metrics on.
+    ## The default maximum number of nodes is 100. Exceeding this limit can cause 
+    ## data loss. To increase the maximum, contact customer support.
     #
     # nodes:
     #   - <NODE_NAME_1>
@@ -682,7 +708,9 @@ instances:
     #   - <REGEX>
 
     ## @param queues - list of strings - optional
-    ## Use the `queues` parameters to specify the queues you'd like to collect metrics on (up to 200 queues).
+    ## Use the `queues` parameters to specify the queues you'd like to collect metrics on.
+    ## The default maximum number of queues is 200. Exceeding this limit can cause 
+    ## data loss. To increase the maximum, contact customer support.
     #
     # queues:
     #   - <QUEUE_NAME_1>
@@ -699,14 +727,16 @@ instances:
     ## For example, if you have a vhost named "myvhost" and a queue named "myqueue", your
     ## pattern is compared to:
     ##   - myqueue
-    ##   - /myvhost/myqueue
-    ## If you have no vhost defined in this example, your pattern is compared to "//myqueue".
+    ##   - myvhost/myqueue
+    ## If you have no vhost defined in this example, your pattern is compared to "/myqueue".
     #
     # queues_regexes:
     #   - <REGEX>
 
     ## @param exchanges - list of strings - optional
-    ## Use the `exchanges` parameters to specify the exchanges you'd like to collect metrics on (up to 50 exchanges).
+    ## Use the `exchanges` parameters to specify the exchanges you'd like to collect metrics on.
+    ## The default maximum number of exchanges is 50. Exceeding this limit can cause 
+    ## data loss. To increase the maximum, contact customer support.
     #
     # exchanges:
     #   - <EXCHANGE_1>
@@ -723,8 +753,8 @@ instances:
     ## For example, if you have a vhost named "myvhost" and a exchange named "myexchange", your
     ## pattern is compared to:
     ##   - myexchange
-    ##   - /myvhost/myexchange
-    ## If you have no vhost defined in this example, your pattern is compared to "//myexchange".
+    ##   - myvhost/myexchange
+    ## If you have no vhost defined in this example, your pattern is compared to "/myexchange".
     #
     # exchanges_regexes:
     #   - <REGEX>

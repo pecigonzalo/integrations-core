@@ -27,15 +27,16 @@ def test_get_py_loglevel():
 
 def test_logging_capture_warnings():
     with mock.patch('logging.Logger.warning') as log_warning:
-        warnings.warn("hello-world")
+        warnings.warn("hello-world")  # noqa: B028
 
         log_warning.assert_not_called()  # warnings are NOT yet captured
 
         init_logging()  # from here warnings are captured as logs
 
-        warnings.warn("hello-world")
+        warnings.warn("hello-world")  # noqa: B028
         assert log_warning.call_count == 1
-        msg = log_warning.mock_calls[0].args[1]
+        warning_arg_index = 0
+        msg = log_warning.mock_calls[0].args[warning_arg_index]
         assert "hello-world" in msg
 
 

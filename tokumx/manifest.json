@@ -12,10 +12,18 @@
     "title": "TokuMX",
     "media": [],
     "classifier_tags": [
+      "Category::Caching",
+      "Category::Data Stores",
       "Supported OS::Linux",
-      "Supported OS::macOS",
       "Supported OS::Windows",
-      "Category::Data Store"
+      "Supported OS::macOS",
+      "Offering::Integration"
+    ],
+    "resources": [
+      {
+        "resource_type": "blog",
+        "url": "https://www.datadoghq.com/blog/monitor-key-tokumx-metrics-mongodb-applications"
+      }
     ]
   },
   "author": {
@@ -24,7 +32,6 @@
     "homepage": "https://www.datadoghq.com",
     "sales_email": "info@datadoghq.com"
   },
-  "oauth": {},
   "assets": {
     "integration": {
       "source_type_name": "TokuMX",
@@ -42,7 +49,8 @@
       "service_checks": {
         "metadata_path": "assets/service_checks.json"
       },
-      "process_signatures": []
+      "source_type_id": 74,
+      "auto_install": true
     },
     "dashboards": {
       "tokumx": "assets/dashboards/tokumx_dashboard.json"

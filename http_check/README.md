@@ -35,7 +35,7 @@ See the [sample http_check.d/conf.yaml][3] for a full list and description of av
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `name`                           | Name of your Http check instance. This is presented as a tag on the Service Checks.                                                                                                                                                              |
 | `url`                            | The URL to test.                                                                                                                                                                                                                                 |
-| `timeout`                        | The time in seconds to allow for a response.                                                                                                                                                                                                     |
+| `timeout`                        | The time in seconds to allow for a response. The default is `10`.                                                                                                                                                                               |
 | `method`                         | The HTTP method to use for the check.                                                                                                                                                                                                            |
 | `data`                           | Use this parameter to specify a body for a request with a POST, PUT, DELETE, or PATCH method. SOAP requests are supported if you use the POST method and supply an XML string as the data parameter.                                             |
 | `headers`                        | This parameter allows you to send additional headers with the request. See the [example YAML file][3] for additional information and caveats.                                                                                                    |
@@ -85,7 +85,7 @@ To disable `http.ssl_cert`, set `check_certificate_expiration` to false.
 
 Need help? Contact [Datadog support][12].
 
-[1]: https://app.datadoghq.com/account/settings#agent
+[1]: https://app.datadoghq.com/account/settings/agent/latest
 [2]: https://docs.datadoghq.com/agent/guide/agent-configuration-files/#agent-configuration-directory
 [3]: https://github.com/DataDog/integrations-core/blob/master/http_check/datadog_checks/http_check/data/conf.yaml.example
 [4]: https://docs.datadoghq.com/developers/write_agent_check/#collection-interval

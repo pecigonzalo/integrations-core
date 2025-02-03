@@ -2,7 +2,8 @@
 
 ## Overview
 
-**Note**: This page describes the ECS Fargate integration. For EKS Fargate, see the documentation for Datadog's [EKS Fargate integration][1].
+<div class="alert alert-warning"> This page describes the ECS Fargate integration. For EKS Fargate, see the documentation for Datadog's <a href="http://docs.datadoghq.com/integrations/eks_fargate">EKS Fargate integration</a>.
+</div>
 
 Get metrics from all your containers running in ECS Fargate:
 
@@ -17,6 +18,8 @@ The Task Metadata endpoint is only available from within the task definition its
 
 The only configuration required to enable this metrics collection is to set an environment variable `ECS_FARGATE` to `"true"` in the task definition.
 
+**Note**: Cloud Network Monitoring (CNM) is not supported for ECS Fargate.
+
 ## Setup
 
 The following steps cover setup of the Datadog Container Agent within AWS ECS Fargate. **Note**: Datadog Agent version 6.1.1 or higher is needed to take full advantage of the Fargate integration.
@@ -24,6 +27,9 @@ The following steps cover setup of the Datadog Container Agent within AWS ECS Fa
 Tasks that do not have the Datadog Agent still report metrics with Cloudwatch, however the Agent is needed for Autodiscovery, detailed container metrics, tracing, and more. Additionally, Cloudwatch metrics are less granular, and have more latency in reporting than metrics shipped directly through the Datadog Agent.
 
 ### Installation
+
+<div class="alert alert-info">You can also monitor AWS Batch jobs on ECS Fargate. See <a href="#installation-for-aws-batch">Installation for AWS Batch</a>.
+</div>
 
 To monitor your ECS Fargate tasks with Datadog, run the Agent as a container in **same task definition** as your application container. To collect metrics with Datadog, each task definition should include a Datadog Agent container in addition to the application containers. Follow these setup steps:
 
@@ -40,6 +46,9 @@ The instructions below show you how to configure the task using the [Amazon Web 
 <!-- xxx tabs xxx -->
 <!-- xxx tab "Web UI" xxx -->
 ##### Web UI Task Definition
+
+<!-- partial
+{{< site-region region="us,us3,us5,eu,ap1,gov" >}}
 
 1. Log in to your [AWS Web Console][4] and navigate to the ECS section.
 2. Click on **Task Definitions** in the left menu, then click the **Create new Task Definition** button or choose an existing Fargate task definition.
@@ -58,13 +67,26 @@ The instructions below show you how to configure the task using the [Amazon Web 
 5. Add your other application containers to the task definition. For details on collecting integration metrics, see [Integration Setup for ECS Fargate][12].
 6. Click **Create** to create the task definition.
 
+[4]: https://aws.amazon.com/console
+[12]: http://docs.datadoghq.com/integrations/faq/integration-setup-ecs-fargate
+[41]: https://app.datadoghq.com/organization-settings/api-keys
+
+{{< /site-region >}}
+partial -->
+
 <!-- xxz tab xxx -->
 
 <!-- xxx tab "AWS CLI" xxx -->
 ##### AWS CLI Task Definition
 
-1. Download [datadog-agent-ecs-fargate.json][42]. **Note**: If you are using Internet Explorer, this may download as gzip file, which contains the JSON file mentioned below.**
+1. Download [datadog-agent-ecs-fargate.json][42]. **Note**: If you are using Internet Explorer, this may download as a gzip file, which contains the JSON file mentioned below.
+<!-- partial
+{{< site-region region="us,us3,us5,eu,ap1,gov" >}}
 2. Update the JSON with a `TASK_NAME`, your [Datadog API Key][41], and the appropriate `DD_SITE` ({{< region-param key="dd_site" code="true" >}}). **Note**: The environment variable `ECS_FARGATE` is already set to `"true"`.
+
+[41]: https://app.datadoghq.com/organization-settings/api-keys
+{{< /site-region >}}
+partial -->
 3. Add your other application containers to the task definition. For details on collecting integration metrics, see [Integration Setup for ECS Fargate][12].
 4. Optionally - Add an Agent health check.
 
@@ -92,7 +114,13 @@ aws ecs register-task-definition --cli-input-json file://<PATH_TO_FILE>/datadog-
 
 You can use [AWS CloudFormation][6] templating to configure your Fargate containers. Use the `AWS::ECS::TaskDefinition` resource within your CloudFormation template to set the Amazon ECS task and specify `FARGATE` as the required launch type for that task.
 
+<!-- partial
+{{< site-region region="us,us3,us5,eu,ap1,gov" >}}
 Update this CloudFormation template below with your [Datadog API Key][41]. As well as include the appropriate `DD_SITE` ({{< region-param key="dd_site" code="true" >}}) environment variable if necessary, as this defaults to `datadoghq.com` if you don't set it.
+
+[41]: https://app.datadoghq.com/organization-settings/api-keys
+{{< /site-region >}}
+partial -->
 
 ```yaml
 Resources:
@@ -123,17 +151,6 @@ For more information on CloudFormation templating and syntax, see the [AWS Cloud
 
 <!-- xxz tabs xxx -->
 
-For all of these examples the `DD_API_KEY` environment variable can alternatively be populated by referencing the the [ARN of a "Plaintext" secret stored in AWS Secret Manager][7].
-
-#### Create or modify your IAM policy
-
-Add the following permissions to your [Datadog IAM policy][8] to collect ECS Fargate metrics. For more information, see the [ECS policies][9] on the AWS website.
-
-| AWS Permission                   | Description                                                       |
-| -------------------------------- | ----------------------------------------------------------------- |
-| `ecs:ListClusters`               | List available clusters.                                          |
-| `ecs:ListContainerInstances`     | List instances of a cluster.                                      |
-| `ecs:DescribeContainerInstances` | Describe instances to add metrics on resources and tasks running. |
 
 #### Run the task as a replica service
 
@@ -207,6 +224,26 @@ For more information on CloudFormation templating and syntax, see the [AWS Cloud
 <!-- xxz tab xxx -->
 
 <!-- xxz tabs xxx -->
+
+To provide your Datadog API key as a secret, see [Using secrets](#using-secrets).
+
+#### Installation for AWS Batch
+
+To monitor your AWS Batch jobs with Datadog, see [AWS Batch with ECS Fargate and the Datadog Agent][62]
+
+#### Create or modify your IAM policy
+
+Add the following permissions to your [Datadog IAM policy][8] to collect ECS Fargate metrics. For more information, see the [ECS policies][9] on the AWS website.
+
+| AWS Permission                   | Description                                                       |
+| -------------------------------- | ----------------------------------------------------------------- |
+| `ecs:ListClusters`               | List available clusters.                                          |
+| `ecs:ListContainerInstances`     | List instances of a cluster.                                      |
+| `ecs:DescribeContainerInstances` | Describe instances to add metrics on resources and tasks running. |
+
+#### Using secrets
+As an alternative to populating the `DD_API_KEY` environment variable with your API key in plaintext, you can instead reference the [ARN of a plaintext secret stored in AWS Secrets Manager][7]. Place the `DD_API_KEY` environment variable under the `containerDefinitions.secrets` section of the task or job definition file. Ensure that the task/job execution role has the necessary permission to fetch secrets from AWS Secrets Manager.
+
 ### Metric collection
 
 After the Datadog Agent is setup as described above, the [ecs_fargate check][11] collects metrics with autodiscovery enabled. Add Docker labels to your other containers in the same task to collect additional metrics.
@@ -260,7 +297,7 @@ CloudFormation example (YAML):
               Value: "{\"com.docker.compose.service\":\"service_name\"}"
 ```
 
-**Note**: You should not use `DD_HOSTNAME` since there is no concept of a host to the user in Fargate. `DD_TAGS` is traditionally used to assign host tags, but as of Datadog Agent version 6.13.0 you can also use the environment variable to set global tags on your integration metrics.
+**Note**: You should not use `DD_HOSTNAME` since there is no concept of a host to the user in Fargate. Using this tag can cause your tasks to appear as APM Hosts in the Infrastructure list, potentially impacting your billing. Instead, `DD_TAGS` is traditionally used to assign host tags. As of Datadog Agent version 6.13.0, you can also use the `DD_TAGS` environment variable to set global tags on your integration metrics.
 
 ### Crawler-based metrics
 
@@ -268,7 +305,7 @@ In addition to the metrics collected by the Datadog Agent, Datadog has a CloudWa
 
 As noted there, Fargate tasks also report metrics in this way:
 
-> The metrics made available will depend on the launch type of the tasks and services in your clusters. If you are using the Fargate launch type for your services then CPU and memory utilization metrics are provided to assist in the monitoring of your services.
+> The metrics made available will depend on the launch type of the tasks and services in your clusters or batch jobs. If you are using the Fargate launch type for your services then CPU and memory utilization metrics are provided to assist in the monitoring of your services.
 
 Since this method does not use the Datadog Agent, you need to configure the AWS integration by checking **ECS** on the integration tile. Then, Datadog pulls these CloudWatch metrics (namespaced `aws.ecs.*` in Datadog) on your behalf. See the [Data Collected][17] section of the documentation.
 
@@ -283,6 +320,8 @@ You can monitor Fargate logs by using either:
 - Using the `awslogs` log driver to store the logs in a CloudWatch Log Group, and then a Lambda function to route logs to Datadog
 
 Datadog recommends using AWS FireLens because you can configure Fluent Bit directly in your Fargate tasks.
+
+**Note**: Log collection with Fluent Bit and FireLens is not supported for AWS Batch on ECS Fargate.
 
 #### Fluent Bit and FireLens
 
@@ -413,6 +452,28 @@ partial -->
 {{< /site-region >}}
 partial -->
 <!-- partial
+{{< site-region region="ap1" >}}
+  ```json
+  {
+    "logConfiguration": {
+      "logDriver": "awsfirelens",
+      "options": {
+        "Name": "datadog",
+        "apikey": "<DATADOG_API_KEY>",
+        "Host": "http-intake.logs.ap1.datadoghq.com",
+        "dd_service": "firelens-test",
+        "dd_source": "redis",
+        "dd_message_key": "log",
+        "dd_tags": "project:fluentbit",
+        "TLS": "on",
+        "provider": "ecs"
+      }
+    }
+  }
+  ```
+{{< /site-region >}}
+partial -->
+<!-- partial
 {{< site-region region="gov" >}}
   ```json
   {
@@ -434,7 +495,14 @@ partial -->
   ```
 {{< /site-region >}}
 partial -->
-  **Note**: Set your `apikey` as well as the `Host` relative to your respective site `http-intake.logs.{{< region-param key="dd_site" code="true" >}}`. The full list of available parameters is described in the [Datadog Fluent Bit documentation][24].
+
+<!-- partial
+{{< site-region region="us,us3,us5,eu,ap1,gov" >}}
+**Note**: Set your `apikey` as well as the `Host` relative to your respective site `http-intake.logs.`{{< region-param key="dd_site" code="true" >}}. The full list of available parameters is described in the [Datadog Fluent Bit documentation][24].
+
+[24]: https://docs.datadoghq.com/integrations/fluentbit/#configuration-parameters
+{{< /site-region >}}
+partial -->
 
   The `dd_service`, `dd_source`, and `dd_tags` can be adjusted for your desired tags.
 
@@ -453,7 +521,7 @@ After this has been added edit the application container in your Task Definition
 <!-- xxx tab "AWS CLI" xxx -->
 ##### AWS CLI
 
-Edit the existing task definition JSON file that you have to contain the `log_router` container and the updated `logConfiguration` for your application container, as described in the previous section. Once this is done you can create a new revision of your task definition with:
+Edit your existing JSON task definition file to include the `log_router` container and the updated `logConfiguration` for your application container, as described in the previous section. After this is done, create a new revision of your task definition with the following command:
 
 ```bash
 aws ecs register-task-definition --cli-input-json file://<PATH_TO_FILE>/datadog-agent-ecs-fargate.json
@@ -667,16 +735,16 @@ For more information on CloudFormation templating and syntax, see the [AWS Cloud
 
 Monitor Fargate logs by using the `awslogs` log driver and a Lambda function to route logs to Datadog.
 
-1. Define the log driver as `awslogs` in the application container in your task you want to collect logs from. [Consult the AWS Fargate developer guide][29] for instructions.
+1. Define the log driver as `awslogs` in the application container in the task or job you want to collect logs from. [Consult the AWS Fargate developer guide][29] for instructions.
 
-2. This configures your Fargate tasks to send log information to Amazon CloudWatch Logs. The following shows a snippet of a task definition where the awslogs log driver is configured:
+2. This configures your Fargate tasks or jobs to send log information to Amazon CloudWatch Logs. The following shows a snippet of a task/job definition where the awslogs log driver is configured:
 
    ```json
    {
      "logConfiguration": {
        "logDriver": "awslogs",
        "options": {
-         "awslogs-group": "/ecs/fargate-task-definition",
+         "awslogs-group": "/ecs/fargate-task|job-definition",
          "awslogs-region": "us-east-1",
          "awslogs-stream-prefix": "ecs"
        }
@@ -684,21 +752,52 @@ Monitor Fargate logs by using the `awslogs` log driver and a Lambda function to 
    }
    ```
 
-    For more information about using the `awslogs` log driver in your task definitions to send container logs to CloudWatch Logs, see [Using the awslogs Log Driver][30]. This driver collects logs generated by the container and sends them to CloudWatch directly.
+    For more information about using the `awslogs` log driver in your task or job definitions to send container logs to CloudWatch Logs, see [Using the awslogs Log Driver][30]. This driver collects logs generated by the container and sends them to CloudWatch directly.
 
 3. Finally, use the [Datadog Lambda Log Forwarder function][31] to collect logs from CloudWatch and send them to Datadog.
 
 ### Trace collection
 
-1. Follow the [instructions above](#installation) to add the Datadog Agent container to your task definition with the additional environment variable `DD_APM_ENABLED` set to `true`. Set the `DD_SITE` variable to {{< region-param key="dd_site" code="true" >}}. It defaults to `datadoghq.com` if you don't set it.
+<!-- partial
+{{< site-region region="us,us3,us5,eu,ap1,gov" >}}
+1. Follow the [instructions above](#installation) to add the Datadog Agent container to your task or job definition with the additional environment variable `DD_APM_ENABLED` set to `true`. Set the `DD_SITE` variable to {{< region-param key="dd_site" code="true" >}}. It defaults to `datadoghq.com` if you don't set it.
+{{< /site-region >}}
+partial -->
 
-2. [Instrument your application][32] based on your setup. With Fargate APM applications do **not** set `DD_AGENT_HOST`, the default of `localhost` works.
+2. Instrument your application based on your setup:
 
-3. Ensure your application is running in the same task definition as the Datadog Agent container.
+   **Note**: With Fargate APM applications, do **not** set `DD_AGENT_HOST` - the default of `localhost` works.
+
+   | Language                           |
+   |------------------------------------|
+   | [Java][47] |
+   | [Python][48] |
+   | [Ruby][49] |
+   | [Go][50] |
+   | [Node.js][51] |
+   | [PHP][52] |
+   | [C++][53] |
+   | [.NET Core][54] |
+   | [.NET Framework][55] |
+
+   See more general information about [Sending Traces to Datadog][32].
+
+3. Ensure your application is running in the same task or job definition as the Datadog Agent container.
+
+### Process collection
+
+<div class="alert alert-warning">You can view your ECS Fargate processes in Datadog. To see their relationship to ECS Fargate containers, use the Datadog Agent v7.50.0 or later.</div>
+
+You can monitor processes in ECS Fargate in Datadog by using the [Live Processes page][56]. To enable process collection, add the [`PidMode` parameter][57] in the Task Definition and set it to `task` as follows:
+
+```text
+"pidMode": "task"
+```
+To filter processes by ECS, use the `AWS Fargate` Containers facet or enter `fargate:ecs` in the search query on the Live Processes page.
 
 ## Out-of-the-box tags
 
-The Agent can autodiscover and attach tags to all data emitted by the entire task or an individual container within this task. The list of tags automatically attached depends on the Agent's [cardinality configuration][33].
+The Agent can autodiscover and attach tags to all data emitted by the entire task or an individual container within this task or job. The list of tags automatically attached depends on the Agent's [cardinality configuration][33].
 
   | Tag                           | Cardinality  | Source               |
   |-------------------------------|--------------|----------------------|
@@ -745,8 +844,8 @@ Need help? Contact [Datadog support][18].
 - Blog post: [AWS Fargate monitoring with Datadog][38]
 - Blog post: [Graviton2-powered AWS Fargate deployments][39]
 - Blog post: [Monitor AWS Fargate for Windows containerized apps][40]
-
-
+- Blog post: [Monitor processes running on AWS Fargate with Datadog][58]
+- Blog post: [Monitor AWS Batch on Fargate with Datadog][63]
 
 [1]: http://docs.datadoghq.com/integrations/eks_fargate
 [2]: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-metadata-endpoint.html
@@ -794,3 +893,20 @@ Need help? Contact [Datadog support][18].
 [44]: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ecs-service.html
 [45]: https://github.com/DataDog/integrations-core/blob/master/ecs_fargate/assets/service_checks.json
 [46]: https://github.com/DataDog/integrations-core/blob/master/ecs_fargate/metadata.csv
+[47]: https://docs.datadoghq.com/tracing/trace_collection/dd_libraries/java?tab=containers#automatic-instrumentation
+[48]: https://docs.datadoghq.com/tracing/trace_collection/dd_libraries/python?tab=containers#instrument-your-application
+[49]: https://docs.datadoghq.com/tracing/trace_collection/dd_libraries/ruby#instrument-your-application
+[50]: https://docs.datadoghq.com/tracing/trace_collection/dd_libraries/go/?tab=containers#activate-go-integrations-to-create-spans
+[51]: https://docs.datadoghq.com/tracing/trace_collection/dd_libraries/nodejs?tab=containers#instrument-your-application
+[52]: https://docs.datadoghq.com/tracing/trace_collection/dd_libraries/php?tab=containers#automatic-instrumentation
+[53]: https://docs.datadoghq.com/tracing/trace_collection/dd_libraries/cpp?tab=containers#instrument-your-application
+[54]: https://docs.datadoghq.com/tracing/trace_collection/dd_libraries/dotnet-core?tab=containers#custom-instrumentation
+[55]: https://docs.datadoghq.com/tracing/trace_collection/dd_libraries/dotnet-framework?tab=containers#custom-instrumentation
+[56]: https://app.datadoghq.com/process
+[57]: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definition_parameters.html#other_task_definition_params
+[58]: https://www.datadoghq.com/blog/monitor-fargate-processes/
+[59]: https://docs.aws.amazon.com/batch/latest/userguide/create-compute-environment.html
+[60]: https://docs.aws.amazon.com/batch/latest/userguide/create-job-queue-fargate.html
+[61]: https://docs.datadoghq.com/resources/json/datadog-agent-aws-batch-ecs-fargate.json
+[62]: https://docs.datadoghq.com/containers/guide/aws-batch-ecs-fargate
+[63]: https://www.datadoghq.com/blog/monitor-aws-batch-on-fargate/

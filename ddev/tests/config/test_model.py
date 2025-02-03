@@ -5,7 +5,7 @@ import os
 
 import pytest
 
-from ddev.config.model import ConfigurationError, RootConfig
+from ddev.config.model import ConfigurationError, RootConfig, get_github_token, get_github_user
 
 
 def test_default():
@@ -32,12 +32,12 @@ def test_default():
                 'app_key': os.getenv('DD_APP_KEY', ''),
                 'site': os.getenv('DD_SITE', 'datadoghq.com'),
                 'dd_url': os.getenv('DD_DD_URL', 'https://app.datadoghq.com'),
-                'log_url': os.getenv('DD_LOGS_CONFIG_DD_URL', ''),
+                'log_url': os.getenv('DD_LOGS_CONFIG_LOGS_DD_URL', ''),
             },
         },
         'github': {
-            'user': os.getenv('DD_GITHUB_USER', ''),
-            'token': os.getenv('DD_GITHUB_TOKEN', ''),
+            'user': get_github_user(),
+            'token': get_github_token(),
         },
         'pypi': {
             'user': '',
@@ -331,7 +331,7 @@ class TestOrg:
             'app_key': os.getenv('DD_APP_KEY', ''),
             'site': os.getenv('DD_SITE', 'datadoghq.com'),
             'dd_url': os.getenv('DD_DD_URL', 'https://app.datadoghq.com'),
-            'log_url': os.getenv('DD_LOGS_CONFIG_DD_URL', ''),
+            'log_url': os.getenv('DD_LOGS_CONFIG_LOGS_DD_URL', ''),
         }
         assert config.org.name == config.org.name == 'default'
         assert config.org.config == config.org.config == org_config
@@ -417,7 +417,7 @@ class TestOrg:
                 'app_key': os.getenv('DD_APP_KEY', ''),
                 'site': os.getenv('DD_SITE', 'datadoghq.com'),
                 'dd_url': os.getenv('DD_DD_URL', 'https://app.datadoghq.com'),
-                'log_url': os.getenv('DD_LOGS_CONFIG_DD_URL', ''),
+                'log_url': os.getenv('DD_LOGS_CONFIG_LOGS_DD_URL', ''),
             },
         }
 
@@ -634,7 +634,7 @@ class TestOrgs:
                 'app_key': os.getenv('DD_APP_KEY', ''),
                 'site': os.getenv('DD_SITE', 'datadoghq.com'),
                 'dd_url': os.getenv('DD_DD_URL', 'https://app.datadoghq.com'),
-                'log_url': os.getenv('DD_LOGS_CONFIG_DD_URL', ''),
+                'log_url': os.getenv('DD_LOGS_CONFIG_LOGS_DD_URL', ''),
             },
         }
         assert config.orgs == orgs
@@ -711,12 +711,12 @@ class TestGitHub:
     def test_default(self):
         config = RootConfig({})
 
-        assert config.github.user == config.github.user == os.getenv('DD_GITHUB_USER', '')
-        assert config.github.token == config.github.token == os.getenv('DD_GITHUB_TOKEN', '')
+        assert config.github.user == config.github.user == get_github_user()
+        assert config.github.token == config.github.token == get_github_token()
         assert config.raw_data == {
             'github': {
-                'user': os.getenv('DD_GITHUB_USER', ''),
-                'token': os.getenv('DD_GITHUB_TOKEN', ''),
+                'user': get_github_user(),
+                'token': get_github_token(),
             },
         }
 

@@ -12,11 +12,10 @@
     "title": "MapR",
     "media": [],
     "classifier_tags": [
+      "Category::Data Stores",
+      "Category::Log Collection",
       "Supported OS::Linux",
-      "Category::Data Store",
-      "Category::OS & System",
-      "Category::Processing",
-      "Category::Log Collection"
+      "Offering::Integration"
     ]
   },
   "author": {
@@ -25,7 +24,6 @@
     "homepage": "https://www.datadoghq.com",
     "sales_email": "info@datadoghq.com"
   },
-  "oauth": {},
   "assets": {
     "integration": {
       "source_type_name": "MapR",
@@ -42,13 +40,12 @@
       },
       "service_checks": {
         "metadata_path": "assets/service_checks.json"
-      }
+      },
+      "source_type_id": 10073,
+      "auto_install": true
     },
     "dashboards": {
       "MapR - Overview": "assets/dashboards/mapr_overview.json"
-    },
-    "logs": {
-      "source": "mapr"
     }
   }
 }

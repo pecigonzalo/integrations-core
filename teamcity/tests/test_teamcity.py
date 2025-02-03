@@ -5,7 +5,6 @@ from copy import deepcopy
 
 import pytest
 from mock import ANY, patch
-from six import PY2
 
 from datadog_checks.teamcity.constants import (
     SERVICE_CHECK_BUILD_PROBLEMS,
@@ -27,8 +26,6 @@ pytestmark = [
     pytest.mark.integration,
     pytest.mark.usefixtures('dd_environment'),
 ]
-
-BUILD_TAGS = BUILD_TAGS + ['instance_name:SampleProject_Build'] if PY2 else BUILD_TAGS
 
 
 def test_build_event(dd_run_check, aggregator, rest_instance):
@@ -72,15 +69,15 @@ def test_config(dd_run_check, extra_config, expected_http_kwargs):
     with patch('datadog_checks.base.utils.http.requests.get') as r:
         dd_run_check(check)
 
-        http_wargs = dict(
-            auth=ANY,
-            cert=ANY,
-            headers=ANY,
-            proxies=ANY,
-            timeout=ANY,
-            verify=ANY,
-            allow_redirects=ANY,
-        )
+        http_wargs = {
+            'auth': ANY,
+            'cert': ANY,
+            'headers': ANY,
+            'proxies': ANY,
+            'timeout': ANY,
+            'verify': ANY,
+            'allow_redirects': ANY,
+        }
         http_wargs.update(expected_http_kwargs)
 
         r.assert_called_with(ANY, **http_wargs)
@@ -89,12 +86,10 @@ def test_config(dd_run_check, extra_config, expected_http_kwargs):
 @pytest.mark.parametrize(
     'build_config, expected_error',
     [
-        pytest.param(
-            {'projects': {'project_id': {}}}, 'Failed to establish a new connection', id="One `projects` config"
-        ),
+        pytest.param({'projects': {'project_id': {}}}, "Failed to resolve 'server.name'", id="One `projects` config"),
         pytest.param(
             {'build_configuration': 'build_config_id'},
-            'Failed to establish a new connection',
+            "Failed to resolve 'server.name'",
             id="One `build_configurations` config",
         ),
         pytest.param(
@@ -107,8 +102,9 @@ def test_config(dd_run_check, extra_config, expected_http_kwargs):
 def test_validate_config(dd_run_check, build_config, expected_error, caplog):
     """
     Test that the `build_configuration` config options are properly configured in Python 2 prior to running check.
-    Note: The properly configured test cases would be expected to have a `Failed to establish a new connection`
+    Note: The properly configured test cases would be expected to have a `Failed to resolve 'server.name'`
     exception.
+    Note2: With requests < 2.31, we expect "Failed to establish a new connection"
     """
     caplog.clear()
     config = {'server': 'server.name', 'use_openmetrics': False}
@@ -117,12 +113,6 @@ def test_validate_config(dd_run_check, build_config, expected_error, caplog):
     instance.update(build_config)
 
     check = TeamCityRest('teamcity', {}, [instance])
-
-    if PY2 and instance.get('projects'):
-        expected_error = (
-            '`projects` option is not supported for Python 2. '
-            'Use the `build_configuration` option or upgrade to Python 3.'
-        )
 
     with pytest.raises(Exception, match=expected_error):
         dd_run_check(check)
@@ -138,7 +128,7 @@ def test_collect_build_stats(dd_run_check, aggregator, rest_instance, teamcity_r
     for metric in BUILD_STATS_METRICS:
         metric_name = metric['name']
         expected_val = metric['value']
-        expected_tags = metric['tags'] if not PY2 else metric['tags'] + ['instance_name:SampleProject_Build']
+        expected_tags = metric['tags']
 
         aggregator.assert_metric(metric_name, tags=expected_tags, value=expected_val)
 
@@ -155,7 +145,7 @@ def test_collect_test_results(dd_run_check, aggregator, rest_instance, teamcity_
 
     for res in EXPECTED_SERVICE_CHECK_TEST_RESULTS:
         expected_status = res['value']
-        expected_tests_tags = res['tags'] if not PY2 else res['tags'] + ['instance_name:SampleProject_Build']
+        expected_tests_tags = res['tags']
         aggregator.assert_service_check(
             'teamcity.{}'.format(SERVICE_CHECK_TEST_RESULTS), status=expected_status, tags=expected_tests_tags
         )

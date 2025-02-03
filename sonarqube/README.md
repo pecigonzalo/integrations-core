@@ -84,7 +84,7 @@ instances:
     password: <password>  # Defined in SonarQube's sonar.properties file
 ```
 
-**Note**: Once the integration is configured, have SonarQube scan at least one project so that the metrics to populate in Datadog.
+**Note**: Once the integration is configured, have SonarQube scan at least one project to send metrics to Datadog.
 
 Metrics collected by this integration are tagged with a `component` tag by default. If you wish to change the tag
 name on a per component basis, specify the `tag` property within the component definition. To set it for all projects,
@@ -131,7 +131,7 @@ To configure this check for an Agent running on a host:
    Agent's configuration directory to start collecting your SonarQube data.
    See the [sample sonarqube.d/conf.yaml][7] for all available configuration options.
 
-   This check has a limit of 350 metrics per JMX instance. The number of returned metrics is indicated in the info page.
+   This check has a limit of 350 metrics per JMX instance. The number of returned metrics is indicated in [the status page][13].
    You can specify the metrics you are interested in by editing the configuration below.
    To learn how to customize the metrics to collect, see the [JMX Checks documentation][6] for more detailed instructions.
    If you need to monitor more metrics, contact [Datadog support][8].
@@ -323,10 +323,10 @@ Need help? Contact [Datadog support][8].
 
 
 [1]: https://www.sonarqube.org
-[2]: https://app.datadoghq.com/account/settings#agent
+[2]: https://app.datadoghq.com/account/settings/agent/latest
 [3]: https://github.com/DataDog/integrations-core/blob/master/sonarqube/datadog_checks/sonarqube/data/metrics.yaml
-[4]: https://docs.sonarqube.org/latest/instance-administration/monitoring/
-[5]: https://docs.sonarqube.org/latest/instance-administration/monitoring/#header-4
+[4]: https://docs.sonarqube.org/latest/server-upgrade-and-maintenance/monitoring/instance/#exposed-jmx-mbeans
+[5]: https://docs.sonarsource.com/sonarqube/latest/instance-administration/monitoring/instance/#how-do-i-activate-jmx
 [6]: https://docs.datadoghq.com/integrations/java/
 [7]: https://github.com/DataDog/integrations-core/blob/master/sonarqube/datadog_checks/sonarqube/data/conf.yaml.example
 [8]: https://docs.datadoghq.com/help/

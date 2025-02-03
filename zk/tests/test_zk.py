@@ -8,7 +8,6 @@ import re
 
 import mock
 import pytest
-from six import PY2, PY3
 
 from datadog_checks.zk import ZookeeperCheck
 
@@ -63,6 +62,15 @@ def test_wrong_expected_mode(aggregator, dd_environment, get_invalid_mode_instan
     aggregator.assert_service_check("zookeeper.mode", status=zk_check.CRITICAL)
 
 
+def test_multiple_expected_modes(aggregator, dd_environment, get_multiple_expected_modes_config):
+    """
+    Accept multiple expected modes.
+    """
+    zk_check = ZookeeperCheck(conftest.CHECK_NAME, {}, [get_multiple_expected_modes_config])
+    zk_check.check(get_multiple_expected_modes_config)
+    aggregator.assert_service_check("zookeeper.mode", status=zk_check.OK)
+
+
 def test_error_state(aggregator, dd_environment, get_conn_failure_config):
     """
     Raise a 'critical' service check when ZooKeeper is in an error state.
@@ -85,10 +93,7 @@ def test_parse_replica_mntr(aggregator, mock_mntr_output, get_test_instance):
     unparsed_line = "zk_peer_state	following - broadcast\n"
     expected_message = "Unexpected 'mntr' output `%s`: %s"
 
-    # Value Error is more verbose in PY 3
-    error_message = 'too many values to unpack'
-    if PY3:
-        error_message = "too many values to unpack (expected 2)"
+    error_message = "too many values to unpack (expected 2)"
 
     check = ZookeeperCheck(conftest.CHECK_NAME, {}, [get_test_instance])
     check.log = mock.MagicMock()
@@ -123,12 +128,7 @@ def test_metadata_regex(datadog_agent, get_test_instance):
     check = ZookeeperCheck(conftest.CHECK_NAME, {}, [get_test_instance])
     check.check_id = 'test:123'
     check.check(get_test_instance)
-    if PY2:
-        import StringIO
-
-        buf = StringIO.StringIO(common.ZK_CLICKHOUSE_PAYLOAD)
-    else:
-        buf = io.StringIO(common.ZK_CLICKHOUSE_PAYLOAD)
+    buf = io.StringIO(common.ZK_CLICKHOUSE_PAYLOAD)
     check.parse_stat(buf)
     expected_version = {
         'version.scheme': 'semver',

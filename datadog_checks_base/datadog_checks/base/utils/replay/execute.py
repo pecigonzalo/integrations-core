@@ -6,6 +6,7 @@ import subprocess
 import sys
 
 from ..common import ensure_bytes, to_native_string
+from ..platform import Platform
 from ..serialization import json
 from .constants import KNOWN_DATADOG_AGENT_SETTER_METHODS, EnvVars
 
@@ -26,6 +27,9 @@ def run_with_isolation(check, aggregator, datadog_agent):
     env_vars[EnvVars.INIT_CONFIG] = to_native_string(json.dumps(init_config))
     env_vars[EnvVars.INSTANCE] = to_native_string(json.dumps(instance))
 
+    if Platform.is_windows():
+        env_vars[EnvVars.DDTRACE] = "false"
+
     check_module = check.__module__
     check_class = check.__class__.__name__
     process = subprocess.Popen(
@@ -39,7 +43,7 @@ def run_with_isolation(check, aggregator, datadog_agent):
         ],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
         env=env_vars,
     )
     with process:

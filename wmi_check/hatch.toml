@@ -1,15 +1,9 @@
 [env.collectors.datadog-checks]
-check-types = true
-mypy-args = [
-  "--py2",
-  "--disallow-untyped-defs",
-  "--follow-imports",
-  "silent",
-  "datadog_checks/wmi_check/wmi_check.py",
-]
+check-types = false
+
 
 [[envs.default.matrix]]
-python = ["2.7", "3.8"]
+python = ["3.12"]
 
 [envs.default]
 e2e-env = false

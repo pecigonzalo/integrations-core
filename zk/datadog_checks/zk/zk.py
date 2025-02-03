@@ -61,14 +61,11 @@ import socket
 import struct
 from collections import defaultdict
 from contextlib import closing
+from io import StringIO
 
 from packaging.version import Version
-from six import PY3, StringIO, iteritems
 
 from datadog_checks.base import AgentCheck, ensure_bytes, ensure_unicode, is_affirmative
-
-if PY3:
-    long = int
 
 
 class ZKConnectionFailure(Exception):
@@ -116,7 +113,10 @@ class ZookeeperCheck(AgentCheck):
         self.host = self.instance.get('host', 'localhost')
         self.port = int(self.instance.get('port', 2181))
         self.timeout = float(self.instance.get('timeout', 3.0))
-        self.expected_mode = (self.instance.get('expected_mode') or '').strip()
+        self.expected_mode = self.instance.get('expected_mode') or []
+        if isinstance(self.expected_mode, str):
+            self.expected_mode = [self.expected_mode]
+        self.expected_mode = [x.strip() for x in self.expected_mode]
         self.base_tags = list(set(self.instance.get('tags', [])))
         self.sc_tags = ["host:{0}".format(self.host), "port:{0}".format(self.port)] + self.base_tags
         self.should_report_instance_mode = is_affirmative(self.instance.get("report_instance_mode", True))
@@ -178,12 +178,15 @@ class ZookeeperCheck(AgentCheck):
                 self.report_instance_mode(mode)
 
             if self.expected_mode:
-                if mode == self.expected_mode:
+                if mode in self.expected_mode:
                     status = AgentCheck.OK
                     message = None
                 else:
                     status = AgentCheck.CRITICAL
-                    message = u"Server is in %s mode but check expects %s mode" % (mode, self.expected_mode)
+                    message = u"Server is in %s mode but check expects %s mode" % (
+                        mode,
+                        ' or '.join(self.expected_mode),
+                    )
                 self.service_check('zookeeper.mode', status, message=message, tags=self.sc_tags)
 
         # Read metrics from the `mntr` output
@@ -220,7 +223,7 @@ class ZookeeperCheck(AgentCheck):
         tags = self.base_tags + ['mode:%s' % mode]
         self.gauge('zookeeper.instances', 1, tags=tags)
         gauges[mode] = 1
-        for k, v in iteritems(gauges):
+        for k, v in gauges.items():
             gauge_name = 'zookeeper.instances.%s' % k
             self.gauge(gauge_name, v, tags=self.base_tags)
 
@@ -303,15 +306,15 @@ class ZookeeperCheck(AgentCheck):
         _, value = buf.readline().split(':')
         # Fixme: This metric name is wrong. It should be removed in a major version of the agent
         # See https://github.com/DataDog/integrations-core/issues/816
-        metrics.append(ZKMetric('zookeeper.bytes_received', long(value.strip())))
-        metrics.append(ZKMetric('zookeeper.packets.received', long(value.strip()), "rate"))
+        metrics.append(ZKMetric('zookeeper.bytes_received', int(value.strip())))
+        metrics.append(ZKMetric('zookeeper.packets.received', int(value.strip()), "rate"))
 
         # Sent: 1324
         _, value = buf.readline().split(':')
         # Fixme: This metric name is wrong. It should be removed in a major version of the agent
         # See https://github.com/DataDog/integrations-core/issues/816
-        metrics.append(ZKMetric('zookeeper.bytes_sent', long(value.strip())))
-        metrics.append(ZKMetric('zookeeper.packets.sent', long(value.strip()), "rate"))
+        metrics.append(ZKMetric('zookeeper.bytes_sent', int(value.strip())))
+        metrics.append(ZKMetric('zookeeper.packets.sent', int(value.strip()), "rate"))
 
         if has_connections_val:
             # Connections: 1
@@ -324,12 +327,12 @@ class ZookeeperCheck(AgentCheck):
 
         # Outstanding: 0
         _, value = buf.readline().split(':')
-        metrics.append(ZKMetric('zookeeper.outstanding_requests', long(value.strip())))
+        metrics.append(ZKMetric('zookeeper.outstanding_requests', int(value.strip())))
 
         # Zxid: 0x1034799c7
         _, value = buf.readline().split(':')
         # Parse as a 64 bit hex int
-        zxid = long(value.strip(), 16)
+        zxid = int(value.strip(), 16)
         # convert to bytes
         zxid_bytes = struct.pack('>q', zxid)
         # the higher order 4 bytes is the epoch
@@ -347,7 +350,7 @@ class ZookeeperCheck(AgentCheck):
 
         # Node count: 487
         _, value = buf.readline().split(':')
-        metrics.append(ZKMetric('zookeeper.nodes', long(value.strip())))
+        metrics.append(ZKMetric('zookeeper.nodes', int(value.strip())))
 
         return metrics, tags, mode, version
 

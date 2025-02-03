@@ -3,21 +3,23 @@
 # Licensed under a 3-clause BSD style license (see LICENSE)
 
 import pytest
-from mock import patch
 
 from datadog_checks.argocd import ArgocdCheck
 from datadog_checks.base.constants import ServiceCheck
-from datadog_checks.base.errors import ConfigurationError
 from datadog_checks.dev.utils import get_metadata_metrics
 
 from .common import (
     API_SERVER_METRICS,
     APP_CONTROLLER_METRICS,
+    APPSET_CONTROLLER_METRICS,
     MOCKED_API_SERVER_INSTANCE,
     MOCKED_APP_CONTROLLER_INSTANCE,
     MOCKED_APP_CONTROLLER_WITH_OTHER_PARAMS,
+    MOCKED_APPSET_CONTROLLER_INSTANCE,
+    MOCKED_NOTIFICATIONS_CONTROLLER_INSTANCE,
     MOCKED_REPO_SERVER_INSTANCE,
     NOT_EXPOSED_METRICS,
+    NOTIFICATIONS_CONTROLLER_METRICS,
     REPO_SERVER_METRICS,
 )
 from .utils import get_fixture_path
@@ -28,8 +30,10 @@ from .utils import get_fixture_path
     [
         ('app_controller', MOCKED_APP_CONTROLLER_INSTANCE, APP_CONTROLLER_METRICS),
         ('app_controller', MOCKED_APP_CONTROLLER_WITH_OTHER_PARAMS, APP_CONTROLLER_METRICS),
+        ('appset_controller', MOCKED_APPSET_CONTROLLER_INSTANCE, APPSET_CONTROLLER_METRICS),
         ('api_server', MOCKED_API_SERVER_INSTANCE, API_SERVER_METRICS),
         ('repo_server', MOCKED_REPO_SERVER_INSTANCE, REPO_SERVER_METRICS),
+        ('notifications_controller', MOCKED_NOTIFICATIONS_CONTROLLER_INSTANCE, NOTIFICATIONS_CONTROLLER_METRICS),
     ],
 )
 def test_app_controller(dd_run_check, aggregator, mock_http_response, namespace, instance, metrics):
@@ -56,7 +60,8 @@ def test_empty_instance(dd_run_check):
     with pytest.raises(
         Exception,
         match="Must specify at least one of the following:"
-        "`app_controller_endpoint`, `repo_server_endpoint` or `api_server_endpoint`.",
+        "`app_controller_endpoint`, `appset_controller_endpoint`, `repo_server_endpoint`, `api_server_endpoint` or"
+        " `notifications_controller_endpoint`.",
     ):
         check = ArgocdCheck('argocd', {}, [{}])
         dd_run_check(check)
@@ -89,10 +94,3 @@ def test_app_controller_service_check(dd_run_check, aggregator, mock_http_respon
         ServiceCheck.UNKNOWN,
         tags=['endpoint:http://app_controller:8082', 'name:faz'],
     )
-
-
-@patch('datadog_checks.argocd.check.PY2', True)
-def test_py2():
-    # Test to ensure that a ConfigurationError is raised when running with Python 2.
-    with pytest.raises(ConfigurationError, match="This version of the integration is only available when using py3."):
-        ArgocdCheck('argocd', {}, [MOCKED_APP_CONTROLLER_INSTANCE])

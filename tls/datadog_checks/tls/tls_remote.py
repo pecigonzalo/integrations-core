@@ -3,7 +3,7 @@
 # Licensed under a 3-clause BSD style license (see LICENSE)
 import ssl
 from hashlib import sha256
-from struct import pack
+from struct import pack, unpack
 
 from cryptography.x509.base import load_der_x509_certificate
 from cryptography.x509.extensions import ExtensionNotFound
@@ -14,7 +14,6 @@ from datadog_checks.base.log import get_check_logger
 from datadog_checks.base.utils.time import get_timestamp
 
 from .const import SERVICE_CHECK_CAN_CONNECT, SERVICE_CHECK_EXPIRATION, SERVICE_CHECK_VALIDATION
-from .utils import closing
 
 
 class TLSRemoteCheck(object):
@@ -52,20 +51,20 @@ class TLSRemoteCheck(object):
         self.agent_check.check_age(cert)
 
     def _get_cert_and_protocol_version(self, sock):
+        cert = None
+        protocol_version = None
         if sock is None:
             self.log.debug("Could not validate certificate because there is no connection")
-            return None, None
+            return cert, protocol_version
         # Get the cert & TLS version from the connection
-        with closing(sock):
+        with sock:
             self.log.debug('Getting cert and TLS protocol version')
             try:
-                with closing(
-                    self.agent_check.get_tls_context().wrap_socket(
-                        sock, server_hostname=self.agent_check._server_hostname
-                    )
+                with self.agent_check.get_tls_context().wrap_socket(
+                    sock, server_hostname=self.agent_check._server_hostname
                 ) as secure_sock:
-                    der_cert = secure_sock.getpeercert(binary_form=True)
                     protocol_version = secure_sock.version()
+                    der_cert = secure_sock.getpeercert(binary_form=True)
                     self.log.debug('Received serialized peer certificate and TLS protocol version %s', protocol_version)
             except Exception as e:
                 # https://docs.python.org/3/library/ssl.html#ssl.SSLCertVerificationError
@@ -86,8 +85,8 @@ class TLSRemoteCheck(object):
                         tags=self.agent_check._tags,
                         message='Certificate has expired',
                     )
-
-                return None, None
+                self.log.debug('Returning cert %s and protocol version %s', cert, protocol_version)
+                return cert, protocol_version
 
         # Load https://cryptography.io/en/latest/x509/reference/#cryptography.x509.Certificate
         try:
@@ -103,7 +102,8 @@ class TLSRemoteCheck(object):
                 tags=self.agent_check._tags,
                 message='Unable to parse the certificate: {}'.format(e),
             )
-            return None, None
+            self.log.debug('Returning cert %s and protocol version %s', cert, protocol_version)
+            return cert, protocol_version
 
     def _get_connection(self):
         try:
@@ -134,6 +134,27 @@ class TLSRemoteCheck(object):
             data = self._read_n_bytes_from_socket(sock, 1)
             if data != b'S':
                 raise Exception('Postgres endpoint does not support TLS')
+        elif protocol == "mysql":
+            self.log.debug('Switching connection to encrypted for %s protocol', protocol)
+            cap_protocol_41 = 1 << 9
+            cap_ssl = 1 << 11
+            cap_secure_connection = 1 << 15
+            capabilities = cap_protocol_41 | cap_ssl | cap_secure_connection
+            max_packet_len = 2**24 - 1
+            charset_id = 8  # latin1
+            # Form Protocol::SSLRequest packet
+            data_init = pack("<iIB23s", capabilities, max_packet_len, charset_id, b"")
+            # Form Mysql Protocol::Packet
+            packet_len = pack("<I", len(data_init))[:3]
+            packet_seq = pack("<B", 1)
+            packet = packet_len + packet_seq + data_init
+            # Read 4 bytes of header to get packet length
+            packet_header = self._read_n_bytes_from_socket(sock, 4)
+            btrl, btrh, packet_number = unpack("<HBB", packet_header)
+            bytes_to_read = btrl + (btrh << 16)
+            # Read Mysql welcome message
+            data = self._read_n_bytes_from_socket(sock, bytes_to_read)
+            sock.sendall(packet)
         else:
             raise Exception('Unsupported starttls protocol: ' + protocol)
 
@@ -156,14 +177,12 @@ class TLSRemoteCheck(object):
             self.log.error('Error occurred while connecting to socket to discover intermediate certificates: %s', e)
             return
 
-        with closing(sock):
+        with sock:
             try:
                 context = ssl.SSLContext(protocol=ssl.PROTOCOL_TLS)
                 context.verify_mode = ssl.CERT_NONE
 
-                with closing(
-                    context.wrap_socket(sock, server_hostname=self.agent_check._server_hostname)
-                ) as secure_sock:
+                with context.wrap_socket(sock, server_hostname=self.agent_check._server_hostname) as secure_sock:
                     der_cert = secure_sock.getpeercert(binary_form=True)
                     protocol_version = secure_sock.version()
                     if protocol_version and protocol_version not in self.agent_check.allowed_versions:

@@ -12,12 +12,18 @@
     "title": "Nagios",
     "media": [],
     "classifier_tags": [
+      "Category::Log Collection",
+      "Category::Notifications",
       "Supported OS::Linux",
-      "Supported OS::macOS",
       "Supported OS::Windows",
-      "Category::Monitoring",
-      "Category::Notification",
-      "Category::Log Collection"
+      "Supported OS::macOS",
+      "Offering::Integration"
+    ],
+    "resources": [
+      {
+        "resource_type": "blog",
+        "url": "https://www.datadoghq.com/blog/nagios-monitoring"
+      }
     ]
   },
   "author": {
@@ -26,7 +32,6 @@
     "homepage": "https://www.datadoghq.com",
     "sales_email": "info@datadoghq.com"
   },
-  "oauth": {},
   "assets": {
     "integration": {
       "source_type_name": "Nagios",
@@ -46,13 +51,12 @@
       },
       "process_signatures": [
         "nagios"
-      ]
+      ],
+      "source_type_id": 3,
+      "auto_install": true
     },
     "saved_views": {
       "nagios_processes": "assets/saved_views/nagios_processes.json"
-    },
-    "logs": {
-      "source": "nagios"
     }
   }
 }

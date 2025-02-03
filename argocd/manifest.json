@@ -8,14 +8,20 @@
     "configuration": "README.md#Setup",
     "support": "README.md#Support",
     "changelog": "CHANGELOG.md",
-    "description": "Argo CD",
+    "description": "Monitor the health and performance of Argo CD",
     "title": "Argo CD",
     "media": [],
     "classifier_tags": [
+      "Category::Developer Tools",
+      "Category::Log Collection",
       "Supported OS::Linux",
       "Supported OS::Windows",
       "Supported OS::macOS",
-      "Category::Log Collection"
+      "Category::Kubernetes",
+      "Category::Configuration & Deployment",
+      "Submitted Data Type::Metrics",
+      "Submitted Data Type::Logs",
+      "Offering::Integration"
     ]
   },
   "assets": {
@@ -32,7 +38,9 @@
         "check": [
           "argocd.api_server.go.goroutines",
           "argocd.app_controller.go.goroutines",
-          "argocd.repo_server.go.goroutines"
+          "argocd.appset_controller.go.goroutines",
+          "argocd.repo_server.go.goroutines",
+          "argocd.notifications_controller.go.goroutines"
         ],
         "metadata_path": "metadata.csv"
       },
@@ -41,16 +49,19 @@
       },
       "process_signatures": [
         "argocd-application-controller",
+        "argocd-applicationset-controller",
         "argocd-repo-server",
-        "argocd-server"
-      ]
+        "argocd-server",
+        "argocd-notifications-controller"
+      ],
+      "source_type_id": 10314,
+      "auto_install": true
     },
-    "logs": {},
     "dashboards": {
       "Argo CD Overview": "assets/dashboards/argo_cd_overview.json"
     },
     "monitors": {
-      "Sync Status": "assets/recommended_monitors/application_sync_status.json"
+      "Applications sync status": "assets/monitors/application_sync_status.json"
     }
   },
   "author": {
@@ -58,6 +69,5 @@
     "name": "Datadog",
     "homepage": "https://www.datadoghq.com",
     "sales_email": "info@datadoghq.com"
-  },
-  "oauth": {}
+  }
 }

@@ -5,7 +5,10 @@
 This check monitors [Snowflake][1] through the Datadog Agent. Snowflake is a SaaS-analytic data warehouse and runs completely on cloud infrastructure. 
 This integration monitors credit usage, billing, storage, query metrics, and more.
 
+Note: This integration is now deprecated and replaced by the new API-based integration. We recommend you fully uninstall the agent integration before installing the new API-based integration. All metrics from the previous integration are available in the new integration, along with new offerings of logs and cloud cost metrics.
+
 <div class="alert alert-info"><bold>Note</bold>: Metrics are collected with queries to Snowflake. Queries made by the Datadog integration are billable by Snowflake.</div>
+
 
 ## Setup
 
@@ -16,14 +19,6 @@ Follow the instructions below to install and configure this check for an Agent r
 The Snowflake check is included in the [Datadog Agent][2] package.
 
 **Note**: The Snowflake check is not available in Datadog Agent v6 using Python 2. To use Snowflake on Agent v6 see [Use Python 3 with Datadog Agent v6][3] or upgrade to Agent v7.
-
-<div class="alert alert-warning">For users configuring the integration with Agent <code>v7.23.0</code>, upgrade the integration version to <code>2.0.1</code> to take advantage of latest features.
-You can upgrade the integration with the following <a href=https://docs.datadoghq.com/agent/guide/integration-management/#install>command</a>:<br>
-
-```text
-datadog-agent integration install datadog-snowflake==2.0.1
-```
-</div>
 
 ### Configuration
 <div class="alert alert-warning">Snowflake recommends granting permissions to an alternate role like `SYSADMIN`. Read more about controlling <a href="https://docs.snowflake.com/en/user-guide/security-access-control-considerations.html#control-the-assignment-of-the-accountadmin-role-to-users">ACCOUNTADMIN role</a> for more information.</div>
@@ -53,6 +48,9 @@ datadog-agent integration install datadog-snowflake==2.0.1
     -- Grant privileges on the SNOWFLAKE database to the new role.
     grant imported privileges on database SNOWFLAKE to role DATADOG;
 
+    -- Grant usage to your default warehouse to the role DATADOG.
+   grant usage on warehouse <WAREHOUSE> to role DATADOG;
+
     -- Create a user, skip this step if you are using an existing user.
     create user DATADOG_USER
     LOGIN_NAME = DATADOG_USER
@@ -76,10 +74,10 @@ datadog-agent integration install datadog-snowflake==2.0.1
         #
       - account: <ORG_NAME>-<ACCOUNT_NAME>
     
-        ## @param user - string - required
+        ## @param username - string - required
         ## Login name for the user.
         #
-        user: <USER>
+        username: <USER>
     
         ## @param password - string - required
         ## Password for the user
@@ -305,7 +303,7 @@ Additional helpful documentation, links, and articles:
 
 
 [1]: https://www.snowflake.com/
-[2]: https://app.datadoghq.com/account/settings#agent
+[2]: https://app.datadoghq.com/account/settings/agent/latest
 [3]: https://docs.datadoghq.com/agent/guide/agent-v6-python-3/?tab=hostagent
 [4]: https://docs.snowflake.com/en/sql-reference/account-usage.html#enabling-account-usage-for-other-roles
 [5]: https://github.com/DataDog/integrations-core/blob/master/snowflake/datadog_checks/snowflake/data/conf.yaml.example

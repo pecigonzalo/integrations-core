@@ -6,11 +6,21 @@ from __future__ import division
 from itertools import chain
 from time import time as timestamp
 
-import ibm_db
 from requests import ConnectionError
 
 from datadog_checks.base import AgentCheck, is_affirmative
 from datadog_checks.base.utils.containers import iter_unique
+from datadog_checks.base.utils.platform import Platform
+
+if Platform.is_windows():
+    # After installing ibm_db, dll path of dependent library of clidriver must be set before importing the module
+    # Ref: https://github.com/ibmdb/python-ibmdb/#installation
+    import os
+
+    embedded_lib = os.path.dirname(os.path.abspath(os.__file__))
+    os.add_dll_directory(os.path.join(embedded_lib, 'site-packages', 'clidriver', 'bin'))
+
+import ibm_db
 
 from . import queries
 from .utils import get_version, scrub_connection_string, status_to_service_check
@@ -32,6 +42,7 @@ class IbmDb2Check(AgentCheck):
         self._tags = self.instance.get('tags', [])
         self._security = self.instance.get('security', 'none')
         self._tls_cert = self.instance.get('tls_cert')
+        self._connection_timeout = self.instance.get('connection_timeout')
 
         # Add global database tag
         self._tags.append('db:{}'.format(self._db))
@@ -547,7 +558,14 @@ class IbmDb2Check(AgentCheck):
 
     def get_connection(self):
         target, username, password = self.get_connection_data(
-            self._db, self._username, self._password, self._host, self._port, self._security, self._tls_cert
+            self._db,
+            self._username,
+            self._password,
+            self._host,
+            self._port,
+            self._security,
+            self._tls_cert,
+            self._connection_timeout,
         )
 
         # Get column names in lower case
@@ -576,7 +594,7 @@ class IbmDb2Check(AgentCheck):
             self.service_check(self.SERVICE_CHECK_CONNECT, self.OK, tags=self._tags)
 
     @classmethod
-    def get_connection_data(cls, db, username, password, host, port, security, tls_cert):
+    def get_connection_data(cls, db, username, password, host, port, security, tls_cert, connection_timeout):
         if host:
             target = 'database={};hostname={};port={};protocol=tcpip;uid={};pwd={}'.format(
                 db, host, port, username, password
@@ -587,6 +605,8 @@ class IbmDb2Check(AgentCheck):
                 target = '{};security=ssl;'.format(target)
             if tls_cert:
                 target = '{};security=ssl;sslservercertificate={}'.format(target, tls_cert)
+            if connection_timeout:
+                target = '{};connecttimeout={}'.format(target, connection_timeout)
         else:  # no cov
             target = db
 

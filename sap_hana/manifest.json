@@ -12,10 +12,12 @@
     "title": "SAP HANA",
     "media": [],
     "classifier_tags": [
+      "Category::Data Stores",
+      "Category::SAP",
       "Supported OS::Linux",
-      "Supported OS::macOS",
       "Supported OS::Windows",
-      "Category::Data Store"
+      "Supported OS::macOS",
+      "Offering::Integration"
     ]
   },
   "author": {
@@ -24,7 +26,6 @@
     "homepage": "https://www.datadoghq.com",
     "sales_email": "info@datadoghq.com"
   },
-  "oauth": {},
   "assets": {
     "integration": {
       "source_type_name": "SAP HANA",
@@ -41,7 +42,9 @@
       },
       "service_checks": {
         "metadata_path": "assets/service_checks.json"
-      }
+      },
+      "source_type_id": 10076,
+      "auto_install": true
     },
     "dashboards": {
       "SAP HANA Overview": "assets/dashboards/overview.json"

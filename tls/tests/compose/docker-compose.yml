@@ -1,5 +1,3 @@
-version: '3'
-
 services:
   # Runs at startup to build certs and exit
   cert-builder:
@@ -55,6 +53,20 @@ services:
     command: -c ssl=on -c ssl_cert_file=/var/lib/postgresql/certs/postgres.valid.mock.crt -c ssl_key_file=/var/lib/postgresql/certs/postgres.valid.mock.key
     environment:
       - POSTGRES_PASSWORD=masterpassw0rd
+    depends_on:
+      - cert-builder
+
+  # mysql serving valid.mysql.mock
+  starttls-mysql:
+    container_name: mysql-valid
+    image: mysql:8.0.37
+    volumes:
+      - certs:/var/lib/certs/:ro
+    ports:
+      - "3306:3306"
+    command: --default-authentication-plugin=mysql_native_password --ssl-cert=/var/lib/certs/mysql.valid.mock.crt --ssl-key=/var/lib/certs/mysql.valid.mock.key
+    environment:
+      - MYSQL_ROOT_PASSWORD=MysqlR00tpass
     depends_on:
       - cert-builder
 
